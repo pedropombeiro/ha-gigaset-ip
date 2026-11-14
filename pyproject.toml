@@ -7,11 +7,7 @@ dependencies = ["aiohttp>=3.11"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.11", "aioresponses>=0.7.8"]
-ha = ["pytest-homeassistant-custom-component==0.13.375", "homeassistant==2026.11.0"]
-
-# The newest test harness pins HA 2026.10.4. Exercise our deployed version instead.
-[tool.uv]
-override-dependencies = ["homeassistant==2026.11.0"]
+ha = ["pytest-homeassistant-custom-component==0.13.375"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -68,8 +68,10 @@ Public fixtures are synthetic. Do not commit raw captures, account names, PINs,
 cookie jars, or login request bodies.
 
 For Home Assistant-level tests, run `mise run setup:ha`, then
-`mise run test:ha`. The test harness currently pins Home Assistant
-`2026.10.4`; the dependency override runs these tests against `2026.11.0`.
+`mise run test:ha`. The test harness pins Home Assistant `2026.10.4`.
+Its private logger imports are incompatible with `2026.11.0`, so do not override
+that dependency. Automated tests cover `2026.10.4`; live Home Assistant setup
+on `2026.11.0` remains a separate, pending validation step.
 
 `mise run format` formats Python. `mise run lint:fix` also fixes lint findings.
 CI uses these same tasks. Renovate groups Home Assistant test dependencies and

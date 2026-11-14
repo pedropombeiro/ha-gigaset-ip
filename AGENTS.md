@@ -10,8 +10,9 @@
   and entity changes. Do not report the full suite passing if HA tests are skipped.
 - Tool versions live in `mise.toml`; Python dependencies live in `pyproject.toml`
   and `uv.lock`. Keep CI on the same mise tasks used locally.
-- The deployed baseline is HA 2026.11.0 with Python 3.14. The test-harness HA
-  override is intentional and documented in README.md. Review both when updating.
+- The deployed baseline is HA 2026.11.0 with Python 3.14. The test harness
+  currently supports HA 2026.10.4. Do not override its HA pin: private logger
+  imports are incompatible with 2026.11.0. Distinguish CI from live validation.
 - Use scoped Conventional Commits and keep GitHub Actions pinned to commit SHAs.
 - Do not add deployment or restart behavior to setup, test, or lint tasks.
 - The integration supplies device state and manual actions. Notifications,

@@ -28,7 +28,7 @@ run = "uv run --locked pytest -p asyncio tests/test_api.py"
 env.PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
 
 [tasks."test:ha"]
-description = "Run all tests against Home Assistant 2026.11.0"
+description = "Run all tests against the test harness's supported Home Assistant version"
 run = "uv run --locked --group ha python -m scripts.test_ha"
 
 [tasks."check:secrets"]

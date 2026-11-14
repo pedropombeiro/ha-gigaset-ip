@@ -1,0 +1,30 @@
+{
+  "title": "Gigaset IP",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to your Gigaset IP base",
+        "description": "Log out of the browser configurator first. Only English pages are supported. Home Assistant stores the PIN in its configuration. HTTP transmits it without encryption.",
+        "data": {"host": "Host", "pin": "System PIN"},
+        "data_description": {"host": "The base hostname or IP address.", "pin": "The four-digit system PIN."}
+      },
+      "reauth_confirm": {
+        "title": "Update the Gigaset system PIN",
+        "description": "Log out of the browser configurator, then enter the current PIN.",
+        "data": {"host": "Host", "pin": "System PIN"},
+        "data_description": {"host": "The address of the same base.", "pin": "The current four-digit system PIN."}
+      }
+    },
+    "error": {
+      "invalid_auth": "The PIN was rejected. Check it before trying again.",
+      "cannot_connect": "Could not read a supported status page from the base.",
+      "session_busy": "The web configurator is in use. Log out in your browser and try again."
+    },
+    "abort": {
+      "already_configured": "This base is already configured.",
+      "reauth_successful": "Credentials updated successfully.",
+      "wrong_account": "This is a different base. Use the original base address."
+    }
+  },
+  "entity": {"button": {"restart": {"name": "Reboot base"}}}
+}

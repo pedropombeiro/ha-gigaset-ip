@@ -1,0 +1,39 @@
+[tools]
+uv = "0.13.8"
+gitleaks = "8.30.1"
+
+[tasks.setup]
+description = "Install the locked API-test dependencies"
+run = "uv sync --locked --python 3.14"
+
+[tasks."setup:ha"]
+description = "Install the locked Home Assistant test environment"
+run = "uv sync --locked --group ha --python 3.14"
+
+[tasks.lint]
+description = "Check Python style and formatting"
+run = ["uv run --locked ruff check .", "uv run --locked ruff format --check ."]
+
+[tasks."lint:fix"]
+description = "Fix Python style and formatting"
+run = ["uv run --locked ruff check --fix .", "uv run --locked ruff format ."]
+
+[tasks.format]
+description = "Format Python files"
+run = "uv run --locked ruff format ."
+
+[tasks.test]
+description = "Run standalone API tests without Home Assistant"
+run = "uv run --locked pytest tests/test_api.py"
+
+[tasks."test:ha"]
+description = "Run all tests against Home Assistant 2026.11.0"
+run = "uv run --locked --group ha pytest"
+
+[tasks."check:secrets"]
+description = "Scan source files for credentials"
+run = "gitleaks dir --redact --no-banner ."
+
+[tasks.check]
+description = "Run style, standalone tests, and secret checks"
+depends = ["lint", "test", "check:secrets"]

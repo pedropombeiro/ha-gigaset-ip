@@ -26,6 +26,28 @@ approved reboot. Other models and languages are not verified.
 The integration does not send notifications or reboot automatically. Configure
 those policies with Home Assistant automations.
 
+## Install with Marketplace
+
+Home Assistant `2026.11` and newer includes **Marketplace** under **Settings**.
+It replaces HACS; there is no separate store integration to install.
+
+[![Open Gigaset IP in Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=pedropombeiro&repository=ha-gigaset-ip&category=integration)
+
+The button uses the compatible HACS shortcut, which opens the repository in
+Marketplace. To add it manually:
+
+1. Open **Settings > Marketplace > Add from link**.
+1. Enter `https://github.com/pedropombeiro/ha-gigaset-ip` and select **Add**.
+   Connect GitHub if prompted. If asked for the content type, select **Integration**.
+1. Open **Gigaset IP** and select **Install**. Follow any restart prompt.
+1. Log out of the base's browser configurator.
+1. Open **Settings > Devices & services > Add integration**, select **Gigaset IP**,
+   and enter the host and four-digit PIN.
+
+See the [Marketplace documentation](https://www.home-assistant.io/integrations/marketplace/)
+for installation and update details. Marketplace updates to an already-loaded
+integration require a Home Assistant restart.
+
 ## Install for development
 
 1. Copy `custom_components/gigaset_ip` into your Home Assistant configuration's
@@ -34,9 +56,6 @@ those policies with Home Assistant automations.
 1. Log out of the base's browser configurator.
 1. Open **Settings > Devices & services > Add integration**, then select
    **Gigaset IP** and enter the host and four-digit PIN.
-
-For HACS, add `pedropombeiro/ha-gigaset-ip` as a custom repository with category
-**Integration**, download it, and restart Home Assistant.
 
 ## Overall connectivity
 

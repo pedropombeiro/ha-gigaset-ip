@@ -6,7 +6,12 @@ from pathlib import Path
 
 
 def chunk(kind, data):
-    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    return (
+        struct.pack(">I", len(data))
+        + kind
+        + data
+        + struct.pack(">I", zlib.crc32(kind + data))
+    )
 
 
 def generate(size):
@@ -22,7 +27,7 @@ def generate(size):
                 color = (26, 54, 78, 255)
             if 111 <= px <= 141 and 151 <= py <= 181:
                 color = (26, 54, 78, 255)
-            if (px - 185) ** 2 + (py - 185) ** 2 < 31 ** 2:
+            if (px - 185) ** 2 + (py - 185) ** 2 < 31**2:
                 color = (44, 194, 132, 255)
             rows.extend(color)
     return (

@@ -24,11 +24,12 @@ run = "uv run --locked ruff format ."
 
 [tasks.test]
 description = "Run standalone API tests without Home Assistant"
-run = "uv run --locked pytest tests/test_api.py"
+run = "uv run --locked pytest -p asyncio tests/test_api.py"
+env.PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
 
 [tasks."test:ha"]
 description = "Run all tests against Home Assistant 2026.11.0"
-run = "uv run --locked --group ha pytest"
+run = "uv run --locked --group ha python -m scripts.test_ha"
 
 [tasks."check:secrets"]
 description = "Scan source files for credentials"

@@ -10,9 +10,6 @@ from unittest.mock import Mock, patch
 import pytest
 from aiohttp import ClientResponse
 
-if importlib.util.find_spec("pytest_homeassistant_custom_component"):
-    pytest_plugins = ["pytest_homeassistant_custom_component"]
-
 PATH = Path(__file__).parents[1] / "custom_components/gigaset_ip/api.py"
 spec = importlib.util.spec_from_file_location("gigaset_api", PATH)
 api = importlib.util.module_from_spec(spec)

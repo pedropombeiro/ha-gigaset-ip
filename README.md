@@ -7,9 +7,10 @@ configurator. Enter the base host and system PIN during setup.
 
 This is development code. Parsing is checked against a private capture from an
 S850A GO running firmware `42.263`. The async client also read all five
-connections successfully from that base and logged out. Live Home Assistant
-setup and the reboot action have not been tested. Other models and languages
-are not verified.
+connections successfully from that base and logged out. On Home Assistant
+`2026.11.0`, setup, registration entities, and the reboot button were tested
+against that base. A failed provider registered successfully after an explicitly
+approved reboot. Other models and languages are not verified.
 
 ## Features
 

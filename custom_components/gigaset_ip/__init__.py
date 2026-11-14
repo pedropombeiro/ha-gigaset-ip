@@ -8,7 +8,7 @@ from .api import GigasetClient
 from .const import CONF_PIN
 from .coordinator import GigasetCoordinator
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

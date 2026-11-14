@@ -13,6 +13,7 @@ from custom_components.gigaset_ip.api import (
     Connection,
     Device,
     InvalidAuth,
+    ParseError,
     SessionBusy,
 )
 from custom_components.gigaset_ip.const import DOMAIN
@@ -103,4 +104,42 @@ async def test_entities_and_unload(hass):
     assert all(
         hass.states.get(state.entity_id).state == "unavailable" for state in states
     )
+    diagnostics = [s for s in hass.states.async_all() if s.domain == "sensor"]
+    assert len(diagnostics) == 2
+    assert all(s.state not in {"unknown", "unavailable"} for s in diagnostics)
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.parametrize(
+    "error,status",
+    [(SessionBusy(), "session_busy"), (ParseError(), "unsupported_response")],
+)
+async def test_diagnostics_retain_last_success(hass, error, status):
+    entry = MockConfigEntry(domain=DOMAIN, data={})
+    client = AsyncMock()
+    client.async_update.return_value = DATA, DEVICE
+    coordinator = GigasetCoordinator(hass, entry, client)
+    await coordinator._async_update_data()
+    timestamp = coordinator.last_success
+    assert coordinator.poll_status == "ok"
+    client.async_update.side_effect = error
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    assert coordinator.poll_status == status
+    assert coordinator.last_success == timestamp
+
+
+async def test_refresh_button_works_after_poll_failure(hass):
+    from custom_components.gigaset_ip.button import GigasetRefresh
+
+    entry = MockConfigEntry(domain=DOMAIN, data={})
+    coordinator = GigasetCoordinator(hass, entry, AsyncMock())
+    coordinator.device = DEVICE
+    coordinator.last_update_success = False
+    button = GigasetRefresh(coordinator)
+    assert button.available
+    with patch.object(
+        coordinator, "async_request_refresh", new_callable=AsyncMock
+    ) as refresh:
+        await button.async_press()
+    refresh.assert_awaited_once()

@@ -27,6 +27,11 @@ def status_html():
     return (Path(__file__).parent / "fixtures/connections.html").read_text()
 
 
+@pytest.fixture
+def device_html():
+    return (Path(__file__).parent / "fixtures/device.html").read_text()
+
+
 @pytest.fixture(autouse=True)
 def aioresponses_stream_writer_compat():
     """Bridge aioresponses 0.7.9 to aiohttp 3.14's response constructor.

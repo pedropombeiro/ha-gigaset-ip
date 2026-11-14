@@ -5,14 +5,26 @@
       "user": {
         "title": "Connect to your Gigaset IP base",
         "description": "Log out of the browser configurator first. Only English pages are supported. Home Assistant stores the PIN in its configuration. HTTP transmits it without encryption.",
-        "data": {"host": "Host", "pin": "System PIN"},
-        "data_description": {"host": "The base hostname or IP address.", "pin": "The four-digit system PIN."}
+        "data": {
+          "host": "Host",
+          "pin": "System PIN"
+        },
+        "data_description": {
+          "host": "The base hostname or IP address.",
+          "pin": "The four-digit system PIN."
+        }
       },
       "reauth_confirm": {
         "title": "Update the Gigaset system PIN",
         "description": "Log out of the browser configurator, then enter the current PIN.",
-        "data": {"host": "Host", "pin": "System PIN"},
-        "data_description": {"host": "The address of the same base.", "pin": "The current four-digit system PIN."}
+        "data": {
+          "host": "Host",
+          "pin": "System PIN"
+        },
+        "data_description": {
+          "host": "The address of the same base.",
+          "pin": "The current four-digit system PIN."
+        }
       }
     },
     "error": {
@@ -26,5 +38,30 @@
       "wrong_account": "This is a different base. Use the original base address."
     }
   },
-  "entity": {"button": {"restart": {"name": "Reboot base"}}}
+  "entity": {
+    "button": {
+      "restart": {
+        "name": "Reboot base"
+      },
+      "refresh": {
+        "name": "Refresh status"
+      }
+    },
+    "sensor": {
+      "last_successful_update": {
+        "name": "Last successful update"
+      },
+      "poll_status": {
+        "name": "Polling status",
+        "state": {
+          "unknown": "Unknown",
+          "ok": "Successful",
+          "session_busy": "Web session busy",
+          "invalid_auth": "Authentication failed",
+          "unsupported_response": "Unsupported response",
+          "communication_error": "Communication error"
+        }
+      }
+    }
+  }
 }

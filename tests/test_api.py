@@ -67,7 +67,7 @@ async def test_login_error_no_logout_or_retry(client_api, code, exception):
         assert sum(len(requests) for requests in mock.requests.values()) == 2
 
 
-async def test_update_always_logs_out(client_api, status_html):
+async def test_update_always_logs_out(client_api, status_html, device_html):
     client = client_api.GigasetClient("base.example", "test-pin")
     with aioresponses() as mock:
         mock.get("http://base.example/login.html", body="var error = 0;")
@@ -75,11 +75,12 @@ async def test_update_always_logs_out(client_api, status_html):
             "http://base.example/login.html", body='<a href="logout.html">Log off</a>'
         )
         mock.get("http://base.example/status_connections.html", body=status_html)
+        mock.get("http://base.example/status_device.html", body=device_html)
         mock.get("http://base.example/logout.html", body="Login")
         connections, device = await client.async_update()
         assert connections["voip_2"].registered is False
         assert device is None
-        assert sum(len(requests) for requests in mock.requests.values()) == 4
+        assert sum(len(requests) for requests in mock.requests.values()) == 5
 
 
 async def test_parse_error_logs_out(client_api):
@@ -92,10 +93,11 @@ async def test_parse_error_logs_out(client_api):
         mock.get(
             "http://base.example/status_connections.html", body="Unexpected markup"
         )
+        mock.get("http://base.example/status_device.html", body="Unsupported markup")
         mock.get("http://base.example/logout.html", body="Login")
         with pytest.raises(client_api.ParseError):
             await client.async_update()
-        assert sum(len(requests) for requests in mock.requests.values()) == 4
+        assert sum(len(requests) for requests in mock.requests.values()) == 5
 
 
 async def test_reject_cross_origin_redirect(client_api):
@@ -112,7 +114,7 @@ async def test_reject_cross_origin_redirect(client_api):
         assert sum(len(requests) for requests in mock.requests.values()) == 2
 
 
-async def test_pin_not_replayed_on_redirect(client_api, status_html):
+async def test_pin_not_replayed_on_redirect(client_api, status_html, device_html):
     client = client_api.GigasetClient("base.example", "test-pin")
     with aioresponses() as mock:
         mock.get("http://base.example/login.html", body="var error = 0;")
@@ -125,6 +127,7 @@ async def test_pin_not_replayed_on_redirect(client_api, status_html):
             "http://base.example/home.html", body='<a href="logout.html">Log off</a>'
         )
         mock.get("http://base.example/status_connections.html", body=status_html)
+        mock.get("http://base.example/status_device.html", body=device_html)
         mock.get("http://base.example/logout.html", body="Login")
         await client.async_update()
         from yarl import URL
@@ -155,7 +158,7 @@ async def test_reboot_only_sends_operation_one(client_api, status_html):
     assert len(data._fields) == 1
 
 
-async def test_lock_serializes_updates(client_api, status_html):
+async def test_lock_serializes_updates(client_api, status_html, device_html):
     client = client_api.GigasetClient("base.example", "test-pin")
     pages = []
 
@@ -164,13 +167,48 @@ async def test_lock_serializes_updates(client_api, status_html):
         await asyncio.sleep(0)
         if page == client_api.STATUS_PAGE:
             return status_html
+        if page == "status_device.html":
+            return device_html
         return '<a href="logout.html">Log off</a>'
 
     with patch.object(client, "_request", request):
         await asyncio.gather(client.async_update(), client.async_update())
     assert (
-        pages == ["login.html", "login.html", client_api.STATUS_PAGE, "logout.html"] * 2
+        pages
+        == [
+            "login.html",
+            "login.html",
+            client_api.STATUS_PAGE,
+            "status_device.html",
+            "logout.html",
+        ]
+        * 2
     )
+
+
+def test_hardware_slots_survive_missing_row(client_api, status_html, device_html):
+    # Account A can disappear without provider B inheriting its identity.
+    start = status_html.index('<tr><td class="rightSide"><table><tr>\n<td>VoIP</td>')
+    end = status_html.index("</tr></table></td></tr>", start) + len(
+        "</tr></table></td></tr>"
+    )
+    connections = client_api.parse_connections(
+        status_html[:start] + status_html[end:], device_html
+    )
+    assert connections["voip_2"].name == "Provider B"
+    assert "voip_1" not in connections
+
+
+def test_ambiguous_slot_labels_rejected(client_api, device_html):
+    with pytest.raises(client_api.ParseError):
+        client_api.parse_slots(device_html.replace("Provider B", "Provider A"))
+
+
+def test_missing_slot_mapping_rejected(client_api, status_html, device_html):
+    with pytest.raises(client_api.ParseError):
+        client_api.parse_connections(
+            status_html, device_html.replace("Provider B", "Different")
+        )
 
 
 async def test_reboot_rejects_unrecognized_form(client_api, status_html):

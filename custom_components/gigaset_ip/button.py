@@ -9,7 +9,29 @@ from .api import GigasetError
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([GigasetRestart(entry.runtime_data)])
+    async_add_entities(
+        [GigasetRestart(entry.runtime_data), GigasetRefresh(entry.runtime_data)]
+    )
+
+
+class GigasetRefresh(CoordinatorEntity, ButtonEntity):
+    """Allow a fresh poll even after a failed update."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "refresh"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.device.mac}_refresh"
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def available(self):
+        return True
+
+    async def async_press(self):
+        await self.coordinator.async_request_refresh()
 
 
 class GigasetRestart(CoordinatorEntity, ButtonEntity):

@@ -17,6 +17,9 @@ approved reboot. Other models and languages are not verified.
 - One connectivity entity per connection slot.
 - Disabled accounts and the fixed line are disabled in the entity registry by default.
 - A manual reboot button. Rebooting interrupts every provider and any active call.
+- A Refresh status button that also works after a failed poll.
+- Diagnostic sensors for the last successful update and polling status: successful,
+  session busy, authentication failure, unsupported response, or communication error.
 - Reauthentication when the base explicitly rejects the PIN.
 - Short, serialized sessions with logout after each poll. Polling runs every five minutes.
 
@@ -32,7 +35,8 @@ those policies with Home Assistant automations.
 1. Open **Settings > Devices & services > Add integration**, then select
    **Gigaset IP** and enter the host and four-digit PIN.
 
-HACS custom-repository installation will be available after publication.
+For HACS, add `pedropombeiro/ha-gigaset-ip` as a custom repository with category
+**Integration**, download it, and restart Home Assistant.
 
 ## Overall connectivity
 
@@ -53,9 +57,10 @@ when another provider fails while one is already disconnected.
   directory and backups. HTTP transmits the PIN without encryption on the LAN.
 - The client never retries a failed login within a poll. An explicit invalid-PIN
   error stops polling and requests reauthentication.
-- Account identifiers follow displayed VoIP row positions. Firmware that omits
-  empty rows may change slot identity when accounts are removed. This needs live
-  verification before relying on identities across account reconfiguration.
+- VoIP identifiers use slot metadata from the device page, not the position of
+  visible status rows. Missing or ambiguous metadata fails the poll safely.
+  Duplicate account labels are unsupported. The mapping is checked against
+  captured metadata and synthetic removal tests; live account removal is untested.
 - No registration data is available while Home Assistant itself is down.
 
 ## Develop
@@ -72,7 +77,8 @@ For Home Assistant-level tests, run `mise run setup:ha`, then
 `mise run test:ha`. The test harness pins Home Assistant `2026.10.4`.
 Its private logger imports are incompatible with `2026.11.0`, so do not override
 that dependency. Automated tests cover `2026.10.4`; live Home Assistant setup
-on `2026.11.0` remains a separate, pending validation step.
+on `2026.11.0` is a separate validation step. The initial version passed live
+setup and reboot tests; subsequent features require their own deployment check.
 
 `mise run format` formats Python. `mise run lint:fix` also fixes lint findings.
 CI uses these same tasks. Renovate groups Home Assistant test dependencies and

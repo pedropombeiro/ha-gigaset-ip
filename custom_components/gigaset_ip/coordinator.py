@@ -6,8 +6,9 @@ from datetime import timedelta
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
-from .api import GigasetError, InvalidAuth
+from .api import GigasetError, InvalidAuth, ParseError, SessionBusy
 from .const import DOMAIN
 
 
@@ -24,6 +25,8 @@ class GigasetCoordinator(DataUpdateCoordinator):
         )
         self.client = client
         self.device = None
+        self.last_success = None
+        self.poll_status = "unknown"
 
     async def _async_update_data(self):
         try:
@@ -31,13 +34,23 @@ class GigasetCoordinator(DataUpdateCoordinator):
                 include_device=self.device is None
             )
         except InvalidAuth as error:
+            self.poll_status = "invalid_auth"
             raise ConfigEntryAuthFailed("System PIN rejected") from error
+        except SessionBusy as error:
+            self.poll_status = "session_busy"
+            raise UpdateFailed("Web configurator session busy") from error
+        except ParseError as error:
+            self.poll_status = "unsupported_response"
+            raise UpdateFailed("Unsupported base response") from error
         except GigasetError as error:
+            self.poll_status = "communication_error"
             raise UpdateFailed(
                 "Base unavailable, session busy, or unsupported response"
             ) from error
         if device is not None:
             self.device = device
+        self.last_success = dt_util.utcnow()
+        self.poll_status = "ok"
         return connections
 
     @property

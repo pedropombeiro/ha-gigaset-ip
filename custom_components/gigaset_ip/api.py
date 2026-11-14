@@ -104,12 +104,15 @@ class Rows(HTMLParser):
             self._cell.append(data)
 
 
-def parse_connections(html: str) -> dict[str, Connection]:
+def parse_connections(
+    html: str, device_html: str | None = None
+) -> dict[str, Connection]:
     """Parse English status rows. Never turn unexpected HTML into an outage."""
     parser = Rows()
     parser.feed(html)
     connections = {}
     voip_slot = 0
+    slots = parse_slots(device_html) if device_html is not None else None
     for row in parser.rows:
         if len(row) != 4 or row[0] not in {"VoIP", "Gigaset.net", "Fixed line"}:
             continue
@@ -118,7 +121,9 @@ def parse_connections(html: str) -> dict[str, Connection]:
             raise ParseError("Incomplete connection row")
         if kind == "VoIP":
             voip_slot += 1
-            slot = f"voip_{voip_slot}"
+            if slots is not None and name not in slots:
+                raise ParseError("Connection has no unambiguous hardware slot")
+            slot = f"voip_{slots[name] if slots is not None else voip_slot}"
         else:
             slot = "gigaset_net" if kind == "Gigaset.net" else "fixed_line"
         if slot in connections:
@@ -127,6 +132,35 @@ def parse_connections(html: str) -> dict[str, Connection]:
     if not connections:
         raise ParseError("No supported connection rows")
     return connections
+
+
+def parse_slots(html: str) -> dict[str, int]:
+    """Read firmware slot metadata without executing JavaScript.
+
+    Display rows omit unused accounts. The device page retains the six VoIP
+    slots and their numeric IDs in lines[index][6]. Reject ambiguous labels
+    rather than silently attaching one account's state to another entity.
+    """
+    names = re.findall(r"lines\[(\d+)\]\[0\]\s*=\s*'((?:\\.|[^'\\])*)'\s*;", html)
+    ids = dict(re.findall(r"lines\[(\d+)\]\[6\]\s*=\s*(\d+)\s*;", html))
+    slots = {}
+    seen = set()
+    for index, name in names:
+        if index not in ids:
+            raise ParseError("Incomplete slot metadata")
+        slot = int(ids[index])
+        if slot > 5:
+            continue
+        if re.search(r"\\(?!['\\])", name):
+            raise ParseError("Unsupported escaped account label")
+        name = re.sub(r"\\(['\\])", r"\1", name)
+        if name in slots or slot in seen:
+            raise ParseError("Ambiguous slot metadata")
+        slots[name] = slot + 1
+        seen.add(slot)
+    if not slots:
+        raise ParseError("Missing slot metadata")
+    return slots
 
 
 def parse_device(html: str) -> Device:
@@ -252,12 +286,11 @@ class GigasetClient:
         """Read registration and optionally device identity in a short session."""
         try:
             async with self._authenticated() as (session, page):
-                connections = parse_connections(page)
+                device_html = await self._request(session, "status_device.html")
+                connections = parse_connections(page, device_html)
                 device = None
                 if include_device:
-                    device = parse_device(
-                        await self._request(session, "status_device.html")
-                    )
+                    device = parse_device(device_html)
                 return connections, device
         except (aiohttp.ClientError, TimeoutError) as error:
             raise GigasetError("Cannot communicate with base") from error

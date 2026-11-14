@@ -17,6 +17,6 @@
 - Do not add deployment or restart behavior to setup, test, or lint tasks.
 - The integration supplies device state and manual actions. Notifications,
   provider selection, and automatic remediation belong in HA automations/helpers.
-- Entity IDs must remain stable across provider display-name changes. Current
-  row-index identities still need verification across account removal.
+- Entity IDs must remain stable across provider display-name changes. Use device
+  page slot metadata, never visible-row positions. Reject ambiguous mappings.
 - Ask before publishing a repository or release, or restarting Home Assistant.

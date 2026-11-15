@@ -25,6 +25,7 @@ class GigasetCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(minutes=5),
         )
         self.client = client
+        self._entry_id = entry.entry_id
         self.device = None
         self.last_success = None
         self.poll_status = "unknown"
@@ -50,8 +51,8 @@ class GigasetCoordinator(DataUpdateCoordinator):
         if device is not None:
             if self.device is not None and device.firmware != self.device.firmware:
                 registry = dr.async_get(self.hass)
-                if registered := registry.async_get_device(
-                    identifiers={(DOMAIN, device.mac)}
+                if registered := registry.async_get_device_by_identifier(
+                    (DOMAIN, device.mac), self._entry_id
                 ):
                     registry.async_update_device(
                         registered.id, sw_version=device.firmware

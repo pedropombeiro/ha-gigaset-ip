@@ -122,7 +122,9 @@ async def test_entities_and_unload(hass):
     assert all(s.attributes["device_class"] == "timestamp" for s in timestamp_states)
     assert all(s.attributes["reported_status"] == "ok" for s in timestamp_states)
     registry = dr.async_get(hass)
-    device = registry.async_get_device(identifiers={(DOMAIN, DEVICE.mac)})
+    device = registry.async_get_device_by_identifier(
+        (DOMAIN, DEVICE.mac), entry.entry_id
+    )
     assert device.sw_version == "42.263"
     with patch(
         "custom_components.gigaset_ip.api.GigasetClient.async_update",
@@ -169,7 +171,7 @@ async def test_refresh_button_works_after_poll_failure(hass):
 
 
 async def test_base_timestamps_refresh_and_survive_failure(hass):
-    hass.config.set_time_zone("Europe/Zurich")
+    await hass.config.async_set_time_zone("Europe/Zurich")
     client = AsyncMock()
     client.async_update.return_value = DATA, DEVICE
     coordinator = GigasetCoordinator(
@@ -221,7 +223,7 @@ async def test_base_timestamps_refresh_and_survive_failure(hass):
     "wall_time", [datetime(2026, 3, 29, 2, 30), datetime(2026, 10, 25, 2, 30)]
 )
 async def test_ambiguous_or_nonexistent_base_time(hass, wall_time):
-    hass.config.set_time_zone("Europe/Zurich")
+    await hass.config.async_set_time_zone("Europe/Zurich")
     client = AsyncMock()
     client.async_update.return_value = (
         DATA,

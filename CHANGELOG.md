@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0
+
+- Add Last NTP synchronization and Uptime since diagnostic timestamp sensors.
+- Display readable firmware metadata and refresh it during polling.
+- Retain valid timestamps through failed polls and missing or malformed fields.
+  Expose parsing status separately without affecting provider registration.
+- Interpret base-local timestamps using Home Assistant's timezone. Both must
+  match. Reject ambiguous or nonexistent daylight-saving times.
+
+All 40 automated tests pass against Home Assistant `2026.10.4`, along with
+hassfest and all 10 HACS checks. The timestamp parsers also pass against the
+private S850A GO capture. These additions have not yet been validated live.
+Handset inventory and NTP-age alerts are not included.
+
 ## 0.1.0
 
 - Monitor registration separately for each configured provider.

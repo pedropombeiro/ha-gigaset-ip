@@ -20,11 +20,31 @@ approved reboot. Other models and languages are not verified.
 - A Refresh status button that also works after a failed poll.
 - Diagnostic sensors for the last successful update and polling status: successful,
   session busy, authentication failure, unsupported response, or communication error.
+- Last NTP synchronization and Uptime since timestamp diagnostics, plus readable
+  firmware metadata on the device page.
 - Reauthentication when the base explicitly rejects the PIN.
 - Short, serialized sessions with logout after each poll. Polling runs every five minutes.
 
 The integration does not send notifications or reboot automatically. Configure
 those policies with Home Assistant automations.
+
+### Base timestamps
+
+The base reports local timestamps with minute precision and no timezone. Its
+timezone must match **Settings > System > General** in Home Assistant. The
+integration uses that timezone to interpret both timestamps. Uptime since is
+the base's reported boot time, not a duration recalculated at every poll.
+
+Both sensors retain their last valid value during failed polls or malformed or
+missing timestamp fields. The `reported_status` attribute distinguishes `ok`,
+`never`, `not_reported`, and `invalid`. An explicit `Never` NTP response clears
+the timestamp. Ambiguous or nonexistent daylight-saving times are `invalid`.
+Check Polling status and Last successful update before relying on retained values.
+No NTP-age alert is included because the normal synchronization interval is unverified.
+
+Handset inventory is not exposed yet. The captured fields do not establish a
+stable handset identifier or current reachability. A registered handset must
+not be assumed online.
 
 ## Install with Marketplace
 

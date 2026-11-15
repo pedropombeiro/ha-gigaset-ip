@@ -10,6 +10,7 @@ import asyncio
 import re
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
@@ -64,12 +65,22 @@ class Connection:
 
 
 @dataclass(frozen=True)
+class BaseTimestamp:
+    """A base-local wall time and its parsing outcome, without raw page text."""
+
+    value: datetime | None = None
+    status: str = "not_reported"
+
+
+@dataclass(frozen=True)
 class Device:
     """Public device metadata without account identifiers."""
 
     mac: str
     model: str
     firmware: str | None
+    last_ntp_sync: BaseTimestamp = BaseTimestamp()
+    boot_time: BaseTimestamp = BaseTimestamp()
 
 
 class Rows(HTMLParser):
@@ -174,11 +185,35 @@ def parse_device(html: str) -> Device:
         raise ParseError("Missing device MAC address")
     model = re.search(r"<title>\s*([^<]+?)\s*</title>", html, re.I)
     firmware = re.search(r"var\s+FirmVer\s*=\s*(\d+)", html)
+    version = firmware[1] if firmware else None
+    if version and len(version) == 12:
+        # Match the device page's FirmVer.substr(0,2) + '.' + substr(2,3).
+        version = f"{version[:2]}.{version[2:5]}"
     return Device(
         mac.lower(),
         model[1] if model else "Gigaset IP",
-        firmware[1] if firmware else None,
+        version,
+        parse_timestamp(parser.rows, "Last synchronization:"),
+        parse_timestamp(parser.rows, "Uptime since:"),
     )
+
+
+def parse_timestamp(rows: list[list[str]], label: str) -> BaseTimestamp:
+    """Parse optional English diagnostics independently of registration status."""
+    values = [r[1] for r in rows if len(r) == 2 and r[0] == label]
+    if not values:
+        return BaseTimestamp()
+    if len(values) != 1:
+        return BaseTimestamp(status="invalid")
+    value = values[0]
+    if value.casefold() == "never" and label == "Last synchronization:":
+        return BaseTimestamp(status="never")
+    if not re.fullmatch(r"\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}", value):
+        return BaseTimestamp(status="invalid")
+    try:
+        return BaseTimestamp(datetime.strptime(value, "%d.%m.%Y %H:%M"), "ok")
+    except ValueError:
+        return BaseTimestamp(status="invalid")
 
 
 def login_error(html: str) -> None:

@@ -1,15 +1,19 @@
 """Exercise config entries, entity state, and errors inside Home Assistant."""
 
+from dataclasses import replace
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.gigaset_ip.api import (
+    BaseTimestamp,
     Connection,
     Device,
     InvalidAuth,
@@ -19,7 +23,13 @@ from custom_components.gigaset_ip.api import (
 from custom_components.gigaset_ip.const import DOMAIN
 from custom_components.gigaset_ip.coordinator import GigasetCoordinator
 
-DEVICE = Device("02:00:00:00:00:01", "Example base", "123456")
+DEVICE = Device(
+    "02:00:00:00:00:01",
+    "Example base",
+    "42.263",
+    BaseTimestamp(datetime(2026, 1, 10, 1, 50), "ok"),
+    BaseTimestamp(datetime(2026, 1, 9, 10, 11), "ok"),
+)
 DATA = {
     "voip_1": Connection("voip_1", "Provider A", "Registered", "VoIP"),
     "voip_2": Connection("voip_2", "Provider B", "Registration failed.", "VoIP"),
@@ -105,8 +115,21 @@ async def test_entities_and_unload(hass):
         hass.states.get(state.entity_id).state == "unavailable" for state in states
     )
     diagnostics = [s for s in hass.states.async_all() if s.domain == "sensor"]
-    assert len(diagnostics) == 2
+    assert len(diagnostics) == 4
     assert all(s.state not in {"unknown", "unavailable"} for s in diagnostics)
+    timestamp_states = [s for s in diagnostics if "reported_status" in s.attributes]
+    assert len(timestamp_states) == 2
+    assert all(s.attributes["device_class"] == "timestamp" for s in timestamp_states)
+    assert all(s.attributes["reported_status"] == "ok" for s in timestamp_states)
+    registry = dr.async_get(hass)
+    device = registry.async_get_device(identifiers={(DOMAIN, DEVICE.mac)})
+    assert device.sw_version == "42.263"
+    with patch(
+        "custom_components.gigaset_ip.api.GigasetClient.async_update",
+        return_value=(DATA, replace(DEVICE, firmware="42.264")),
+    ):
+        await entry.runtime_data.async_refresh()
+    assert registry.async_get(device.id).sw_version == "42.264"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -143,3 +166,71 @@ async def test_refresh_button_works_after_poll_failure(hass):
     ) as refresh:
         await button.async_press()
     refresh.assert_awaited_once()
+
+
+async def test_base_timestamps_refresh_and_survive_failure(hass):
+    hass.config.set_time_zone("Europe/Zurich")
+    client = AsyncMock()
+    client.async_update.return_value = DATA, DEVICE
+    coordinator = GigasetCoordinator(
+        hass, MockConfigEntry(domain=DOMAIN, data={}), client
+    )
+    await coordinator._async_update_data()
+    first = dict(coordinator.timestamps)
+    assert first["last_ntp_sync"].value == datetime(2026, 1, 10, 0, 50, tzinfo=UTC)
+    await coordinator._async_update_data()
+    assert coordinator.timestamps == first
+    client.async_update.assert_awaited_with(include_device=True)
+    updated = BaseTimestamp(datetime(2026, 1, 11, 1, 50), "ok")
+    client.async_update.return_value = DATA, replace(DEVICE, last_ntp_sync=updated)
+    await coordinator._async_update_data()
+    assert coordinator.timestamps["last_ntp_sync"].value == datetime(
+        2026, 1, 11, 0, 50, tzinfo=UTC
+    )
+    first = dict(coordinator.timestamps)
+    client.async_update.side_effect = SessionBusy()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    assert coordinator.timestamps == first
+    client.async_update.side_effect = None
+    client.async_update.return_value = (
+        DATA,
+        Device(
+            DEVICE.mac,
+            DEVICE.model,
+            DEVICE.firmware,
+            BaseTimestamp(status="invalid"),
+            BaseTimestamp(status="not_reported"),
+        ),
+    )
+    await coordinator._async_update_data()
+    assert coordinator.timestamps["last_ntp_sync"].value == first["last_ntp_sync"].value
+    assert coordinator.timestamps["last_ntp_sync"].status == "invalid"
+    assert coordinator.poll_status == "ok"
+    client.async_update.return_value = (
+        DATA,
+        Device(
+            DEVICE.mac, DEVICE.model, DEVICE.firmware, BaseTimestamp(status="never")
+        ),
+    )
+    await coordinator._async_update_data()
+    assert coordinator.timestamps["last_ntp_sync"] == BaseTimestamp(status="never")
+
+
+@pytest.mark.parametrize(
+    "wall_time", [datetime(2026, 3, 29, 2, 30), datetime(2026, 10, 25, 2, 30)]
+)
+async def test_ambiguous_or_nonexistent_base_time(hass, wall_time):
+    hass.config.set_time_zone("Europe/Zurich")
+    client = AsyncMock()
+    client.async_update.return_value = (
+        DATA,
+        Device(
+            DEVICE.mac, DEVICE.model, DEVICE.firmware, BaseTimestamp(wall_time, "ok")
+        ),
+    )
+    coordinator = GigasetCoordinator(
+        hass, MockConfigEntry(domain=DOMAIN, data={}), client
+    )
+    await coordinator._async_update_data()
+    assert coordinator.timestamps["last_ntp_sync"] == BaseTimestamp(status="invalid")

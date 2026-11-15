@@ -1,14 +1,15 @@
 """Share a short authenticated poll between every entity."""
 
 import logging
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import GigasetError, InvalidAuth, ParseError, SessionBusy
+from .api import BaseTimestamp, GigasetError, InvalidAuth, ParseError, SessionBusy
 from .const import DOMAIN
 
 
@@ -27,12 +28,11 @@ class GigasetCoordinator(DataUpdateCoordinator):
         self.device = None
         self.last_success = None
         self.poll_status = "unknown"
+        self.timestamps = {}
 
     async def _async_update_data(self):
         try:
-            connections, device = await self.client.async_update(
-                include_device=self.device is None
-            )
+            connections, device = await self.client.async_update(include_device=True)
         except InvalidAuth as error:
             self.poll_status = "invalid_auth"
             raise ConfigEntryAuthFailed("System PIN rejected") from error
@@ -48,7 +48,37 @@ class GigasetCoordinator(DataUpdateCoordinator):
                 "Base unavailable, session busy, or unsupported response"
             ) from error
         if device is not None:
+            if self.device is not None and device.firmware != self.device.firmware:
+                registry = dr.async_get(self.hass)
+                if registered := registry.async_get_device(
+                    identifiers={(DOMAIN, device.mac)}
+                ):
+                    registry.async_update_device(
+                        registered.id, sw_version=device.firmware
+                    )
             self.device = device
+            zone = dt_util.get_time_zone(self.hass.config.time_zone)
+            for key in ("last_ntp_sync", "boot_time"):
+                reading = getattr(device, key)
+                value = reading.value
+                if value is not None:
+                    # Reject ambiguous/nonexistent DST wall times rather than
+                    # silently claiming a boot or NTP sync at the wrong instant.
+                    local = value.replace(tzinfo=zone)
+                    alternate = local.replace(fold=1)
+                    if (
+                        local.utcoffset() != alternate.utcoffset()
+                        or local.astimezone(UTC).astimezone(zone).replace(tzinfo=None)
+                        != value
+                    ):
+                        reading = BaseTimestamp(status="invalid")
+                    else:
+                        reading = BaseTimestamp(local.astimezone(UTC), "ok")
+                if reading.status in {"invalid", "not_reported"}:
+                    previous = self.timestamps.get(key)
+                    if previous is not None:
+                        reading = BaseTimestamp(previous.value, reading.status)
+                self.timestamps[key] = reading
         self.last_success = dt_util.utcnow()
         self.poll_status = "ok"
         return connections

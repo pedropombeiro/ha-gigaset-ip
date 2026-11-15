@@ -1,6 +1,7 @@
 """Test status parsing and safe, short-lived sessions."""
 
 import asyncio
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -43,6 +44,39 @@ def test_device_identity(client_api):
     assert device.firmware == "123456"
     with pytest.raises(client_api.ParseError):
         client_api.parse_device("<title>Login</title>")
+
+
+def test_base_diagnostics(client_api, device_html):
+    device = client_api.parse_device(device_html)
+    assert device.firmware == "42.263"
+    assert device.last_ntp_sync.value == datetime(2026, 1, 10, 1, 50)
+    assert device.boot_time.value == datetime(2026, 1, 9, 10, 11)
+    assert device.last_ntp_sync.status == "ok"
+
+
+@pytest.mark.parametrize(
+    "value,status",
+    [
+        ("Never", "never"),
+        ("", "invalid"),
+        ("31.02.2026 01:50", "invalid"),
+        ("unrecognized", "invalid"),
+        ("01/10/2026 01:50", "invalid"),
+    ],
+)
+def test_optional_timestamp_states(client_api, device_html, value, status):
+    device = client_api.parse_device(device_html.replace("10.01.2026 01:50", value))
+    assert device.last_ntp_sync.value is None
+    assert device.last_ntp_sync.status == status
+    assert device.boot_time.status == "ok"
+
+
+def test_missing_and_duplicate_timestamp(client_api):
+    assert (
+        client_api.parse_timestamp([], "Last synchronization:").status == "not_reported"
+    )
+    row = ["Last synchronization:", "10.01.2026 01:50"]
+    assert client_api.parse_timestamp([row, row], row[0]).status == "invalid"
 
 
 @pytest.mark.parametrize(

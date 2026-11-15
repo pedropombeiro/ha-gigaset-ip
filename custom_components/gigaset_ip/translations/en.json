@@ -48,6 +48,12 @@
       }
     },
     "sensor": {
+      "last_ntp_sync": {
+        "name": "Last NTP synchronization"
+      },
+      "boot_time": {
+        "name": "Uptime since"
+      },
       "last_successful_update": {
         "name": "Last successful update"
       },

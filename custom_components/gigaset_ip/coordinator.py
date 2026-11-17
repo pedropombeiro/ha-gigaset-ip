@@ -58,7 +58,9 @@ class GigasetCoordinator(DataUpdateCoordinator):
                         registered.id, sw_version=device.firmware
                     )
             self.device = device
-            zone = dt_util.get_time_zone(self.hass.config.time_zone)
+            # The configured zone is preloaded; looking it up by name can read
+            # the tz database from disk and block the event loop.
+            zone = dt_util.get_default_time_zone()
             for key in ("last_ntp_sync", "boot_time"):
                 reading = getattr(device, key)
                 value = reading.value

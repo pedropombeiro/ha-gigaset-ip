@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Read the configured timezone without blocking Home Assistant's event loop
+  during polling.
+
 ## 0.2.0
 
 - Add Last NTP synchronization and Uptime since diagnostic timestamp sensors.

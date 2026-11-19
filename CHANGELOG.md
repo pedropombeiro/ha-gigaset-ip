@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+- Show the translated wrong-base error during reauthentication instead of a raw
+  translation key. Keep the original configuration unchanged when another base
+  is selected.
+- Add a regression test for wrong-base reauthentication.
+
 ## 0.2.1
 
 - Read the configured timezone without blocking Home Assistant's event loop

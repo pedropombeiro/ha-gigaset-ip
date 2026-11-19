@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import SOURCE_USER
+from homeassistant.config_entries import SOURCE_REAUTH, SOURCE_USER
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
@@ -57,6 +57,30 @@ async def test_setup_flow(hass):
     assert result["type"] == "create_entry"
     assert result["result"].unique_id == DEVICE.mac
     assert result["data"]["host"] == "http://base.example/"
+
+
+async def test_reauth_wrong_base_uses_translated_abort_reason(hass):
+    original_data = {"host": "http://base.example/", "pin": "unused"}
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=DEVICE.mac, data=original_data)
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
+        data=entry.data,
+    )
+    assert result["step_id"] == "reauth_confirm"
+    with patch(
+        "custom_components.gigaset_ip.config_flow.GigasetClient.async_update",
+        return_value=(DATA, replace(DEVICE, mac="02:00:00:00:00:02")),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {"host": "other-base.example", "pin": "".join(map(str, range(1, 5)))},
+        )
+    assert result["type"] == "abort"
+    assert result["reason"] == "wrong_account"
+    assert entry.data == original_data
+    assert entry.unique_id == DEVICE.mac
 
 
 @pytest.mark.parametrize(

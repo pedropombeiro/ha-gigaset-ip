@@ -78,7 +78,7 @@ class GigasetFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 await self.async_set_unique_id(device.mac)
-                self._abort_if_unique_id_mismatch()
+                self._abort_if_unique_id_mismatch(reason="wrong_account")
                 return self.async_update_reload_and_abort(entry, data_updates=data)
         return self.async_show_form(
             step_id="reauth_confirm",
